@@ -1,0 +1,9 @@
+<div *ngIf="isLoading(); then loadingBlock else loginBlock"></div>
+<ng-template #loadingBlock>
+    <h1>Loading... </h1>
+</ng-template>
+<ng-template #loginBlock>
+    <div fxLayout="column" class="mat-elevation-z2 responsive-grid">
+        <a *ngFor="let provider of providers" href="{{provider.url}}">{{provider.name}}</a>
+    </div>
+</ng-template>

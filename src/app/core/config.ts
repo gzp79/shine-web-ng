@@ -6,8 +6,6 @@ import { HttpClient } from '@angular/common/http';
   providedIn: 'root'
 })
 export class ConfigService {
-  constructor() {
-  }
-
   api_url: string = "https://cloud.scytta.com"
+  web_url: string = "https://local.scytta.com"
 }

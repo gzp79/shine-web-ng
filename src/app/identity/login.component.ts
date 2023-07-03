@@ -1,38 +1,69 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, auditTime } from 'rxjs';
 
 import { AuthStateService, CurrentUser } from './services/auth-state.service';
+import { ConfigService } from '../core/config';
+
+// It could be a better UX to show a longer loading screen even if data is ready, than have a short flickering
+const AUDIT_TIME = 0
+
+type ProviderInfo = {
+  name: string,
+  url: string,
+}
 
 @Component({
   selector: 'identity-login',
-  template: `
-    <div *ngIf="isLoading">
-      <h1>Login... </h1>
-    </div>
-    <div *ngIf="!isLoading && currentUser === null">
-      <h1>Logins TBD </h1>
-    </div>
-  `
+  templateUrl: './login.component.html'
 })
 export class LoginComponent implements OnInit, OnDestroy {
-  isLoading = true;
+  isLoadingUserInfo = true;
   currentUser: CurrentUser | null = null;
   currentUserSub: Subscription | null = null;
+  providers: ProviderInfo[] | null = null;
 
-  constructor(private authStateService: AuthStateService, private router: Router) {
-    this.isLoading = true;
+  redirect_local: string = '/app'
+  redirect_url() : string {
+    return this.configService.web_url + this.redirect_local
+  }
+
+  constructor(
+    private configService: ConfigService,
+    private authStateService: AuthStateService,
+    private router: Router,
+    private activeRoute: ActivatedRoute) {
+  }
+
+  isLoading(): boolean {
+    return this.providers === null || this.isLoadingUserInfo
   }
 
   ngOnInit(): void {
-    this.currentUserSub = this.authStateService.loginCurrentUser$().subscribe(
+    this.activeRoute.queryParams
+      .subscribe(params => {
+        this.redirect_local = params['redirect'] ?? '/app';
+      })
+
+    this.currentUserSub = this.authStateService.autoLogin().pipe(auditTime(AUDIT_TIME)).subscribe(
       (user) => {
         this.currentUser = user
-        this.isLoading = false;
-        this.currentUserSub?.unsubscribe()
+        this.isLoadingUserInfo = false;
         if (this.currentUser !== null) {
-          this.router.navigate(['/app'])
+          // if there is a valid user, navigate to the target
+          this.router.navigate([this.redirect_local])
         }
+      }
+    )
+    this.authStateService.getProviders().subscribe(
+      (providers) => {
+        this.providers = providers?.map(provider => {
+          return {
+            name: provider,
+            url: `${this.configService.api_url}/identity/auth/${provider}/login?redirect=${this.redirect_url()}`
+          } as ProviderInfo
+        }) ?? []
+        console.log("providers: ", providers)
       }
     )
   }
